@@ -10,8 +10,11 @@ All of it goes through one command engine (`core/.../automation`), exposed four 
 | GUI + automation server | `bin/openrocket gui` | watching/controlling the real app; `cli --connect`, `mcp --connect` |
 | Headless server | `bin/openrocket serve` | a long-lived session shared by many CLI calls |
 
-`bin/openrocket` runs the jar from `./gradlew shadowJar -x test` with Java 17 or 21 (`JAVA_HOME` or
-`OPENROCKET_JAVA_HOME`). The jar works the same way: `java -jar OpenRocket.jar cli ...`.
+`bin/openrocket` runs the jar from `./gradlew shadowJar -x test` with Java 17 or 21 (`OPENROCKET_JAVA_HOME`,
+else `JAVA_HOME`; if that Java is another version, an installed 21 or 17 is found automatically). The jar works the
+same way: `java -jar OpenRocket.jar cli ...`. On macOS the launcher extracts the SQLite native library once into
+`~/Library/Caches/OpenRocket`, because macOS sometimes refuses the fresh temp copy that sqlite-jdbc makes on every
+start, which would leave the motor database empty.
 
 ## Commands
 
@@ -37,8 +40,8 @@ command can still be reached through the model (`object.*`, `script.eval`) or th
 
 ### Conventions
 
-- **Units**: results are SI (m, kg, s, rad, N). Inputs accept SI numbers or strings with units:
-  `"30 cm"`, `"2.5 in"`, `"5 deg"`, `"10 mph"`, `"12 g"`.
+- **Units**: results are SI (m, kg, s, rad, N); latitude and longitude are in degrees. Inputs accept SI numbers
+  or strings with units: `"30 cm"`, `"2.5 in"`, `"5 deg"`, `"10 mph"`, `"12 g"`, `"1.6 g/cm3"`, `"106.97 W"`.
 - **Documents**: `doc` is an id from `doc.list`, a file path (opened on demand), or omitted for the active document.
 - **Components**: an id, a unique name, a name path (`"Sustainer/Body tube/Fins"`), `"Type#n"` (e.g. `"FinSet#0"`),
   or `"rocket"`. `component.get` lists every property with its type, allowed values and whether it can be written.
@@ -62,8 +65,10 @@ Parameter values that parse as JSON are passed as JSON; anything else is a strin
 `--connect` operates a running GUI or server instead of a private headless session. Results go to
 stdout as JSON; errors go to stderr, and the exit status is 1.
 
+Values parse as JSON only when they are strictly valid JSON, so a configuration name such as `[C6-5]` stays a string.
 Scripts (`cli run file`, or `cli run -` from stdin) and the REPL (`cli repl`) take one command per line,
-as `command key=value ...` or `command {json}`:
+as `command key=value ...` or `command {json}`. `#` starts a comment, either a whole line or after whitespace
+outside quotes. A script stops at the first error:
 
 ```
 doc.new name="Demo"
@@ -93,14 +98,19 @@ Headless (the default): an in-memory session, with no window.
 
 For Claude Code: `claude mcp add openrocket -- /path/to/openrocket/bin/openrocket mcp --gui`.
 
-Tool names are the command names with `_` in place of `.` (`sim_run`, `component_set`, ...).
+Tool names are the command names with `_` in place of `.` (`sim_run`, `component_set`, ...). Tools carry
+`readOnlyHint` (true only for commands with no side effects) and `destructiveHint` (removing things, writing files,
+changing preferences, running scripts).
 
 ## GUI automation server
 
 `bin/openrocket gui` starts the normal application plus a localhost server. It writes its port and a
 random token to `~/Library/Application Support/OpenRocket/automation.json` (macOS; `%APPDATA%\OpenRocket` on
 Windows, `~/.openrocket` on Linux). The file is readable only by your user. `--no-prompt` skips startup dialogs (welcome,
-update checks) that would otherwise wait for a click. When an automation command opens a modal dialog,
+update checks) that would otherwise wait for a click. In `gui` and `mcp --gui` mode, file dialogs are Swing dialogs
+rather than the native ones, so that `gui.*` can operate them (`-Dflatlaf.useSystemFileChooser=true` restores native
+dialogs). This makes the GUI-only features scriptable: SVG export, Print / Save as PDF, the rocket optimizer and
+Photo Studio. `gui.render` also renders the 3D views (it switches the view while capturing). When an automation command opens a modal dialog,
 the call returns a `blocked_by_dialog` error naming it. Operate the dialog with `gui.tree` / `gui.set_value` /
 `gui.click`. Model commands keep working while it is open.
 

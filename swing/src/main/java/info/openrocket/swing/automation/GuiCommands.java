@@ -58,9 +58,11 @@ import info.openrocket.core.automation.Command;
 import info.openrocket.core.automation.Describe;
 import info.openrocket.core.automation.J;
 import info.openrocket.core.automation.Params;
+import info.openrocket.core.automation.ValueCodec;
 import info.openrocket.core.document.OpenRocketDocument;
 import info.openrocket.core.document.Simulation;
 import info.openrocket.core.rocketcomponent.RocketComponent;
+import info.openrocket.swing.gui.adaptors.DoubleModel;
 import info.openrocket.swing.gui.configdialog.ComponentConfigDialog;
 import info.openrocket.swing.gui.main.BasicFrame;
 import info.openrocket.swing.gui.scalefigure.RocketPanel;
@@ -340,8 +342,10 @@ public final class GuiCommands {
 			JsonArray rows = new JsonArray();
 			for (int i = 0; i < tree.getRowCount(); i++) {
 				TreePath tp = tree.getPathForRow(i);
+				boolean leaf = tree.getModel().isLeaf(tp.getLastPathComponent());
 				rows.add(J.obj("row", i, "depth", tp.getPathCount() - 1, "text",
-						String.valueOf(tp.getLastPathComponent()), "selected", tree.isRowSelected(i)));
+						String.valueOf(tp.getLastPathComponent()), "selected", tree.isRowSelected(i),
+						"leaf", leaf, "expanded", !leaf && tree.isExpanded(i)));
 			}
 			o.add("rows", rows);
 		}
@@ -398,6 +402,13 @@ public final class GuiCommands {
 				return true;
 			}
 		}
+		if (c instanceof JTabbedPane tp) {
+			for (int i = 0; i < tp.getTabCount(); i++) {
+				if (tp.getTitleAt(i) != null && tp.getTitleAt(i).toLowerCase(Locale.ROOT).contains(f)) {
+					return true;
+				}
+			}
+		}
 		return false;
 	}
 
@@ -428,6 +439,13 @@ public final class GuiCommands {
 				l.setSelectedIndex(row);
 			} else {
 				JTree t = (JTree) c;
+				if (p.has("expand")) {
+					if (p.bool("expand", true)) {
+						t.expandRow(row);
+					} else {
+						t.collapseRow(row);
+					}
+				}
 				r = t.getRowBounds(row);
 				t.setSelectionRow(row);
 			}
@@ -476,7 +494,12 @@ public final class GuiCommands {
 	static void setValue(Component c, JsonElement value, Params p) throws Exception {
 		if (c instanceof JSpinner sp) {
 			JComponent editor = sp.getEditor();
-			if (editor instanceof JSpinner.DefaultEditor de) {
+			if (sp.getModel() instanceof DoubleModel.ValueSpinnerModel vm && value.isJsonPrimitive()
+					&& value.getAsString().matches(".*\\d.*[\\p{L}°%‰µ].*")) {
+				// The spinner's own parser takes expressions in the displayed unit only; convert "15 mm" etc. via SI
+				DoubleModel dm = vm.getDoubleModel();
+				dm.setValue(ValueCodec.parseQuantity(value.getAsString(), dm.getUnitGroup()));
+			} else if (editor instanceof JSpinner.DefaultEditor de) {
 				// Typing into the editor goes through the spinner's formatter (units, expressions)
 				de.getTextField().setText(value.getAsString());
 				de.getTextField().commitEdit();
@@ -534,7 +557,24 @@ public final class GuiCommands {
 		} else if (c instanceof JTable t) {
 			if (p.has("column")) {
 				int row = p.integer("row");
-				t.setValueAt(value.getAsString(), row, p.integer("column"));
+				int col = p.integer("column");
+				// Table models cast to their column type, so convert the JSON value to it
+				Class<?> cls = t.getColumnClass(col);
+				boolean number = value.isJsonPrimitive() && value.getAsJsonPrimitive().isNumber();
+				Object v;
+				if (cls == Boolean.class) {
+					v = value.getAsBoolean();
+				} else if (cls == Integer.class) {
+					v = value.getAsInt();
+				} else if (Number.class.isAssignableFrom(cls) || (cls == Object.class && number)) {
+					v = value.getAsDouble();
+				} else {
+					v = value.getAsString();
+				}
+				if (!t.isCellEditable(row, col)) {
+					throw AutomationException.badParam("Cell " + row + "," + col + " is not editable");
+				}
+				t.setValueAt(v, row, col);
 			} else {
 				int row = value.getAsInt();
 				t.setRowSelectionInterval(row, row);
@@ -718,6 +758,20 @@ public final class GuiCommands {
 		return bos.toByteArray();
 	}
 
+	static RocketPanel.VIEW_TYPE viewType(String name) {
+		RocketPanel.VIEW_TYPE view = RocketPanel.VIEW_TYPE.fromName(name);
+		if (view == null) {
+			for (RocketPanel.VIEW_TYPE v : RocketPanel.VIEW_TYPE.values()) {
+				if (v.name().equalsIgnoreCase(name) && v != RocketPanel.VIEW_TYPE.SEPARATOR) {
+					return v;
+				}
+			}
+			throw AutomationException.badParam("Unknown view '" + name
+					+ "'. Use SideView, TopView, BackView, Figure3D, Unfinished or Finished.");
+		}
+		return view;
+	}
+
 	static BasicFrame frame(AutomationSession s, Params p) throws Exception {
 		OpenRocketDocument doc = s.document(p);
 		BasicFrame f = GuiDocumentHost.frame(doc);
@@ -756,11 +810,11 @@ public final class GuiCommands {
 	public static List<Command> all() {
 		List<Command> l = new ArrayList<>();
 
-		l.add(Command.builder("gui.windows")
+		l.add(Command.builder("gui.windows").readOnly()
 				.description("List the open windows and dialogs (ids, titles, modality, bounds).")
 				.handler((p, s) -> listWindows()).build());
 
-		l.add(Command.builder("gui.tree")
+		l.add(Command.builder("gui.tree").readOnly()
 				.description("The widgets of a window: buttons, fields, combo boxes, checkboxes, tabs, tables, labels... "
 						+ "with ids for gui.click / gui.set_value. Only the selected tab of tabbed panes is walked.")
 				.param("window", "string", "Window id, title, or 'active' (default: the active / topmost window)")
@@ -775,7 +829,7 @@ public final class GuiCommands {
 					return J.obj("window", "w" + windowId(w), "title", title(w), "widgets", out);
 				}).build());
 
-		l.add(Command.builder("gui.find")
+		l.add(Command.builder("gui.find").readOnly()
 				.description("Find widgets whose text, label, tooltip, name or type contains a string.")
 				.required("text", "string", "Text to search for")
 				.param("window", "string", "Window (default: all windows)")
@@ -788,7 +842,7 @@ public final class GuiCommands {
 					return out;
 				}).build());
 
-		l.add(Command.builder("gui.inspect")
+		l.add(Command.builder("gui.inspect").readOnly()
 				.description("Details of one widget: text, value, items of combo boxes/lists, table contents, tree rows, bounds.")
 				.required("id", "string", "Widget id")
 				.handler((p, s) -> describe(component(p.string("id")), true)).build());
@@ -801,6 +855,7 @@ public final class GuiCommands {
 				.param("row", "integer", "Row of a table / list / tree")
 				.param("column", "integer", "Column of a table")
 				.param("tab", "ref", "Tab title or index of a tabbed pane")
+				.param("expand", "boolean", "With 'row' on a tree: expand (true) or collapse (false) that row first")
 				.param("clicks", "integer", "Number of clicks (2 = double click)")
 				.param("right", "boolean", "Right-click (context menu)")
 				.param("x", "integer", "X within the widget")
@@ -857,7 +912,7 @@ public final class GuiCommands {
 					return J.obj("windows", settle());
 				}).build());
 
-		l.add(Command.builder("gui.menus")
+		l.add(Command.builder("gui.menus").readOnly()
 				.description("All menu items of a window's menu bar, as paths for gui.menu (e.g. \"File / Save as\"), "
 						+ "with shortcuts and enabled state.")
 				.param("window", "string", "Window (default: the active design window)")
@@ -893,7 +948,7 @@ public final class GuiCommands {
 					return J.obj("invoked", p.string("path"), "windows", settle());
 				}).build());
 
-		l.add(Command.builder("gui.screenshot")
+		l.add(Command.builder("gui.screenshot").readOnly()
 				.description("Screenshot of a window or widget as PNG (returned as an image, optionally saved). "
 						+ "method 'paint' renders the Swing tree (works when covered/off-screen); 'screen' captures the "
 						+ "screen pixels (needed for the 3D view; may need screen-recording permission).")
@@ -923,18 +978,43 @@ public final class GuiCommands {
 				.param("width", "integer", "Image width in pixels (default 1200)")
 				.param("path", "string", "Also save the PNG here")
 				.param("inline", "boolean", "Return the image data (default true)")
+				.anyThread()
 				.handler((p, s) -> {
-					BasicFrame f = frame(s, p);
-					RocketPanel.VIEW_TYPE view = RocketPanel.VIEW_TYPE.fromName(p.string("view", "SideView"));
-					if (view == null) {
-						view = RocketPanel.VIEW_TYPE.valueOf(p.string("view"));
-					}
+					RocketPanel panel = s.getHost().run(() -> frame(s, p).getRocketPanel());
+					RocketPanel.VIEW_TYPE view = viewType(p.string("view", "SideView"));
 					int w = p.integer("width", 1200);
-					byte[] png = f.getRocketPanel().createPreviewPng(view, w, w / 6, w);
-					if (png == null) {
-						throw new AutomationException("Rendering failed (empty rocket?)");
+					// The 3D figure can only be captured while it is the displayed view, once OpenGL is ready
+					RocketPanel.VIEW_TYPE previous = s.getHost().run(panel::getCurrentViewType);
+					boolean switched = view.is3d && previous != view;
+					if (switched) {
+						s.getHost().run(() -> {
+							panel.setViewType(view);
+							return null;
+						});
 					}
-					return image(png, p);
+					try {
+						byte[] png;
+						long deadline = System.currentTimeMillis() + 10000;
+						while (true) {
+							png = s.getHost().run(() -> panel.createPreviewPng(view, w, w / 6, w));
+							if (png != null || !view.is3d || System.currentTimeMillis() > deadline) {
+								break;
+							}
+							Thread.sleep(200);
+						}
+						if (png == null) {
+							throw new AutomationException(view.is3d ? "3D rendering failed (OpenGL unavailable?); "
+									+ "try a 2D view" : "Rendering failed (empty rocket?)");
+						}
+						return image(png, p);
+					} finally {
+						if (switched) {
+							s.getHost().run(() -> {
+								panel.setViewType(previous);
+								return null;
+							});
+						}
+					}
 				}).build());
 
 		l.add(Command.builder("gui.view")
@@ -943,11 +1023,7 @@ public final class GuiCommands {
 				.required("view", "string", "View type")
 				.handler((p, s) -> {
 					BasicFrame f = frame(s, p);
-					RocketPanel.VIEW_TYPE view = RocketPanel.VIEW_TYPE.fromName(p.string("view"));
-					if (view == null) {
-						view = RocketPanel.VIEW_TYPE.valueOf(p.string("view"));
-					}
-					f.getRocketPanel().setViewType(view);
+					f.getRocketPanel().setViewType(viewType(p.string("view")));
 					return J.obj("view", f.getRocketPanel().getCurrentViewType().name());
 				}).build());
 

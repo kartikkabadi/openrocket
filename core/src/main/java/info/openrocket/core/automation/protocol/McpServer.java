@@ -11,6 +11,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -31,6 +32,10 @@ import info.openrocket.core.util.BuildProperties;
  */
 public class McpServer {
 	private static final List<String> PROTOCOL_VERSIONS = List.of("2025-06-18", "2025-03-26", "2024-11-05");
+	/** Commands that delete or overwrite work; hinted as destructive so clients can ask before running them. */
+	private static final Set<String> DESTRUCTIVE = Set.of("doc.close", "doc.save", "component.remove", "config.remove",
+			"sim.remove", "sim.remove_extension", "export.rocksim", "export.rasaero", "export.obj", "sim.export_csv",
+			"pref.set", "units.set_preferred", "script.eval", "object.call", "gui.close_window");
 	private static final Gson PRETTY = new GsonBuilder().setPrettyPrinting().serializeNulls().create();
 
 	private static final String INSTRUCTIONS = """
@@ -179,8 +184,9 @@ public class McpServer {
 			t.addProperty("description", c.get("description").getAsString());
 			t.add("inputSchema", c.get("inputSchema"));
 			JsonObject ann = new JsonObject();
-			boolean mutating = c.has("mutating") && c.get("mutating").getAsBoolean();
-			ann.addProperty("readOnlyHint", !mutating);
+			boolean readOnly = c.has("readOnly") && c.get("readOnly").getAsBoolean();
+			ann.addProperty("readOnlyHint", readOnly);
+			ann.addProperty("destructiveHint", !readOnly && DESTRUCTIVE.contains(name));
 			ann.addProperty("openWorldHint", false);
 			t.add("annotations", ann);
 			tools.add(t);

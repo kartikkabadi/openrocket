@@ -91,7 +91,7 @@ public final class ComponentCommands {
 	public static List<Command> all() {
 		List<Command> l = new ArrayList<>();
 
-		l.add(Command.builder("component.types")
+		l.add(Command.builder("component.types").readOnly()
 				.description("List the component types that can be added, and (optionally) which are allowed under a given parent.")
 				.doc()
 				.param("parent", "string", "Component reference; only list types allowed as its children")
@@ -110,7 +110,7 @@ public final class ComponentCommands {
 					return a;
 				}).build());
 
-		l.add(Command.builder("component.tree")
+		l.add(Command.builder("component.tree").readOnly()
 				.description("The component tree of the rocket (or of a sub-component), with ids, names, types and key dimensions (SI). "
 						+ "Component references accepted elsewhere: id, unique name, a/b/c name path, 'Type#n', or 'rocket'.")
 				.doc()
@@ -122,7 +122,7 @@ public final class ComponentCommands {
 					return Describe.tree(comp(s, doc, p, "component"), p.integer("depth", -1), p.bool("properties", false));
 				}).build());
 
-		l.add(Command.builder("component.get")
+		l.add(Command.builder("component.get").readOnly()
 				.description("All properties of a component with their current values (SI units), types, allowed choices and whether they are writable.")
 				.doc()
 				.required("component", "string", "Component reference")

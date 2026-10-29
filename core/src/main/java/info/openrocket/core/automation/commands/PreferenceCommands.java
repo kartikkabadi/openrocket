@@ -34,7 +34,7 @@ public final class PreferenceCommands {
 	public static List<Command> all() {
 		List<Command> l = new ArrayList<>();
 
-		l.add(Command.builder("pref.get")
+		l.add(Command.builder("pref.get").readOnly()
 				.description("Read application preferences (defaults for new simulations, launch site, materials, "
 						+ "display options, ...). Without names lists all typed preferences.")
 				.param("names", "array", "Preference property names")
@@ -69,7 +69,7 @@ public final class PreferenceCommands {
 					return J.obj("set", ComponentCommands.applyProperties(s, null, prefs, p.object("properties")));
 				}).build());
 
-		l.add(Command.builder("units.list")
+		l.add(Command.builder("units.list").readOnly()
 				.description("Unit groups with their units and the user's preferred (display) unit.")
 				.anyThread()
 				.handler((p, s) -> {
@@ -115,7 +115,7 @@ public final class PreferenceCommands {
 					return J.ok();
 				}).build());
 
-		l.add(Command.builder("units.convert")
+		l.add(Command.builder("units.convert").readOnly()
 				.description("Convert a quantity between units, e.g. value \"3 in\" to \"mm\".")
 				.required("value", "quantity", "Value with unit, e.g. \"3 in\"")
 				.param("to", "string", "Target unit (default SI)")

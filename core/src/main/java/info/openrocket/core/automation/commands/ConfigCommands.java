@@ -45,7 +45,7 @@ public final class ConfigCommands {
 	public static List<Command> all() {
 		List<Command> l = new ArrayList<>();
 
-		l.add(Command.builder("config.list")
+		l.add(Command.builder("config.list").readOnly()
 				.description("List flight configurations with their motors and active stages.")
 				.doc()
 				.handler((p, s) -> {

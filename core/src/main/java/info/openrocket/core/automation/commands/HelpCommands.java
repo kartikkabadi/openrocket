@@ -20,7 +20,7 @@ public final class HelpCommands {
 
 	public static List<Command> all() {
 		List<Command> l = new ArrayList<>();
-		l.add(Command.builder("help")
+		l.add(Command.builder("help").readOnly()
 				.description("List all commands by group, or describe one command and its parameters.")
 				.param("command", "string", "Command to describe")
 				.anyThread()

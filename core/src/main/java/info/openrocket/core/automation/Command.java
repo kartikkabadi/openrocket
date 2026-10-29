@@ -27,6 +27,7 @@ public final class Command {
 	private final List<Param> params;
 	private final Handler handler;
 	private final boolean mutating;
+	private final boolean readOnly;
 	private final boolean edt;
 
 	private Command(Builder b) {
@@ -35,6 +36,7 @@ public final class Command {
 		this.params = Collections.unmodifiableList(new ArrayList<>(b.params));
 		this.handler = b.handler;
 		this.mutating = b.mutating;
+		this.readOnly = b.readOnly;
 		this.edt = b.edt;
 	}
 
@@ -57,6 +59,11 @@ public final class Command {
 	/** Whether the command changes a document (used for auto-save in one-shot CLI mode). */
 	public boolean isMutating() {
 		return mutating;
+	}
+
+	/** Whether the command only reads state: no documents, files, preferences or windows change. */
+	public boolean isReadOnly() {
+		return readOnly;
 	}
 
 	/** Whether the command must run on the GUI thread when a GUI is attached. */
@@ -122,6 +129,7 @@ public final class Command {
 		private final List<Param> params = new ArrayList<>();
 		private Handler handler;
 		private boolean mutating = false;
+		private boolean readOnly = false;
 		private boolean edt = true;
 
 		private Builder(String name) {
@@ -156,6 +164,12 @@ public final class Command {
 
 		public Builder mutating() {
 			this.mutating = true;
+			return this;
+		}
+
+		/** Marks the command as having no side effects (MCP readOnlyHint). */
+		public Builder readOnly() {
+			this.readOnly = true;
 			return this;
 		}
 

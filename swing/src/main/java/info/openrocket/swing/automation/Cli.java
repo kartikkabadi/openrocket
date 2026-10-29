@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintStream;
 import java.io.Reader;
+import java.io.StringReader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.ArrayList;
@@ -18,6 +19,9 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.google.gson.JsonPrimitive;
+import com.google.gson.Strictness;
+import com.google.gson.stream.JsonReader;
+import com.google.gson.stream.JsonToken;
 
 import info.openrocket.core.automation.AutomationSession;
 import info.openrocket.core.automation.J;
@@ -155,8 +159,8 @@ public final class Cli {
 			if (line == null) {
 				break;
 			}
-			line = line.trim();
-			if (line.isEmpty() || line.startsWith("#")) {
+			line = stripComment(line).trim();
+			if (line.isEmpty()) {
 				continue;
 			}
 			if (line.equals("exit") || line.equals("quit")) {
@@ -227,23 +231,45 @@ public final class Cli {
 		return params;
 	}
 
-	/** A value is JSON if it parses as an object, array, number, boolean or null; otherwise a string. */
+	/**
+	 * A value is JSON if it parses (strictly) as an object, array, number, boolean or null; otherwise a
+	 * string. Strict parsing keeps names such as "[C6-5]" (flight configurations) as strings.
+	 */
 	static JsonElement value(String s) {
 		String t = s.trim();
 		if (t.startsWith("{") || t.startsWith("[") || t.equals("true") || t.equals("false") || t.equals("null")
-				|| t.matches("-?\\d+(\\.\\d+)?([eE][-+]?\\d+)?")) {
-			try {
-				return JsonParser.parseString(t);
-			} catch (RuntimeException ignored) {
-			}
-		}
-		if (t.length() >= 2 && t.startsWith("\"") && t.endsWith("\"")) {
-			try {
-				return JsonParser.parseString(t);
-			} catch (RuntimeException ignored) {
+				|| t.matches("-?\\d+(\\.\\d+)?([eE][-+]?\\d+)?")
+				|| (t.length() >= 2 && t.startsWith("\"") && t.endsWith("\""))) {
+			try (JsonReader r = new JsonReader(new StringReader(t))) {
+				r.setStrictness(Strictness.STRICT);
+				JsonElement e = JsonParser.parseReader(r);
+				if (r.peek() == JsonToken.END_DOCUMENT) {
+					return e;
+				}
+			} catch (RuntimeException | IOException ignored) {
 			}
 		}
 		return new JsonPrimitive(s);
+	}
+
+	/** Remove a '#' comment (at the start of the line or after whitespace, outside quoted strings). */
+	static String stripComment(String line) {
+		char quote = 0;
+		for (int i = 0; i < line.length(); i++) {
+			char c = line.charAt(i);
+			if (quote != 0) {
+				if (c == '\\') {
+					i++;
+				} else if (c == quote) {
+					quote = 0;
+				}
+			} else if (c == '"' || c == '\'') {
+				quote = c;
+			} else if (c == '#' && (i == 0 || Character.isWhitespace(line.charAt(i - 1)))) {
+				return line.substring(0, i);
+			}
+		}
+		return line;
 	}
 
 	/** Split a line on whitespace, honouring single/double quotes and {...}/[...] groups. */

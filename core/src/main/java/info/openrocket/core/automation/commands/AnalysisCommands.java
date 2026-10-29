@@ -98,7 +98,7 @@ public final class AnalysisCommands {
 	public static List<Command> all() {
 		List<Command> l = new ArrayList<>();
 
-		l.add(conditions(Command.builder("analysis.stability"))
+		l.add(conditions(Command.builder("analysis.stability").readOnly())
 				.description("Stability of the design: CG, CP, stability margin (calibers), CNα, mass with/without "
 						+ "motors, length, max diameter, total CD and design warnings — the figures the GUI shows "
 						+ "under the rocket drawing.")
@@ -108,7 +108,7 @@ public final class AnalysisCommands {
 					return stability(fc, conditions(fc, p), !p.has("theta"));
 				}).build());
 
-		l.add(Command.builder("analysis.mass")
+		l.add(Command.builder("analysis.mass").readOnly()
 				.description("Mass and CG breakdown per component (and motors) for a configuration.")
 				.doc()
 				.param("config", "ref", "Flight configuration (default: selected)")
@@ -133,7 +133,7 @@ public final class AnalysisCommands {
 							"components", a);
 				}).build());
 
-		l.add(conditions(Command.builder("analysis.aero"))
+		l.add(conditions(Command.builder("analysis.aero").readOnly())
 				.description("Aerodynamic breakdown per component: CP, CNα, pressure/base/friction/total CD, roll "
 						+ "forcing and damping (the component analysis dialog).")
 				.handler((p, s) -> {
@@ -161,7 +161,7 @@ public final class AnalysisCommands {
 							Describe.warnings(w));
 				}).build());
 
-		l.add(conditions(Command.builder("analysis.sweep"))
+		l.add(conditions(Command.builder("analysis.sweep").readOnly())
 				.description("Sweep a flight condition and report total CD, CP, CNα and stability margin at each value.")
 				.required("parameter", "string", "mach, aoa, theta or rollRate")
 				.required("min", "quantity", "Start value")

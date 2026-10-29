@@ -146,7 +146,7 @@ public final class ObjectCommands {
 	public static List<Command> all() {
 		List<Command> l = new ArrayList<>();
 
-		l.add(Command.builder("object.get")
+		l.add(Command.builder("object.get").readOnly()
 				.description("Read the properties of any model object (see 'target'). Without 'names', lists all simple "
 						+ "properties with type and writability. With names, any getter can be read, including complex ones.")
 				.doc()
@@ -215,7 +215,7 @@ public final class ObjectCommands {
 					return J.obj("result", r, "resultClass", r == null ? null : r.getClass().getName());
 				}).build());
 
-		l.add(Command.builder("object.methods")
+		l.add(Command.builder("object.methods").readOnly()
 				.description("List the public methods of a model object (see 'target').")
 				.doc()
 				.required("target", "string", TARGET_HELP)

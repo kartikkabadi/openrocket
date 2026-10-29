@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -52,6 +53,13 @@ public class AutomationCommandsTest extends BaseTestCase {
 		assertEquals(Math.PI / 6, ValueCodec.parseQuantity("30 deg", UnitGroup.UNITS_ANGLE), 1e-12);
 		assertEquals(0.002, ValueCodec.parseQuantity("2 g", UnitGroup.UNITS_MASS), 1e-12);
 		assertThrows(AutomationException.class, () -> ValueCodec.parseQuantity("5 bananas", null));
+		assertEquals(1600.0, ValueCodec.parseQuantity("1.6 g/cm3", UnitGroup.UNITS_DENSITY_BULK), 1e-9);
+		assertEquals(9.81, ValueCodec.parseQuantity("9.81 m/s^2", null), 1e-12);
+		assertEquals(30.0, ValueCodec.parseQuantity("30 deg", UnitGroup.UNITS_LATITUDE), 1e-12);
+		assertEquals(-80.6, ValueCodec.parseQuantity("80.6 W", UnitGroup.UNITS_LONGITUDE), 1e-12);
+		assertEquals(UnitGroup.UNITS_LENGTH, BeanAccess.unitHint("sweep"));
+		assertEquals(UnitGroup.UNITS_ANGLE, BeanAccess.unitHint("sweepAngle"));
+		assertEquals(UnitGroup.UNITS_LATITUDE, BeanAccess.unitHint("launchLatitude"));
 	}
 
 	@Test
@@ -85,6 +93,13 @@ public class AutomationCommandsTest extends BaseTestCase {
 		JsonObject byId = call("component.get", "component", fins.get("id").getAsString()).getAsJsonObject();
 		assertEquals(fins.get("id"), byId.get("id"));
 		assertThrows(AutomationException.class, () -> call("component.get", "component", "No such thing"));
+
+		call("component.add", "type", "InnerTube", "parent", "Body", "name", "Mount");
+		call("component.set", "component", "Mount", "properties", J.obj("clusterConfiguration", "3-ring"));
+		JsonObject mount = call("component.get", "component", "Mount", "names", List.of("clusterConfiguration"))
+				.getAsJsonObject();
+		assertEquals("3-ring", mount.getAsJsonObject("properties").getAsJsonObject("clusterConfiguration")
+				.get("value").getAsString());
 	}
 
 	@Test
@@ -117,6 +132,10 @@ public class AutomationCommandsTest extends BaseTestCase {
 		JsonObject sim = call("sim.get", "sim", "Windy").getAsJsonObject();
 		assertEquals(5.0, sim.getAsJsonObject("options").get("windSpeedAverage").getAsDouble(), 1e-9);
 		assertEquals(1.5, sim.getAsJsonObject("options").get("launchRodLength").getAsDouble(), 1e-9);
+		call("sim.set", "sim", "Windy", "options", J.obj("launchLatitude", "32.99 deg", "launchLongitude", "106.97 W"));
+		sim = call("sim.get", "sim", "Windy").getAsJsonObject();
+		assertEquals(32.99, sim.getAsJsonObject("options").get("launchLatitude").getAsDouble(), 1e-9);
+		assertEquals(-106.97, sim.getAsJsonObject("options").get("launchLongitude").getAsDouble(), 1e-9);
 	}
 
 	@Test
@@ -138,9 +157,16 @@ public class AutomationCommandsTest extends BaseTestCase {
 
 		JsonArray tools = JsonParser.parseString(lines[1]).getAsJsonObject().getAsJsonObject("result").getAsJsonArray("tools");
 		assertTrue(tools.size() > 50);
+		java.util.Map<String, Boolean> readOnly = new java.util.HashMap<>();
 		for (JsonElement t : tools) {
-			assertTrue(t.getAsJsonObject().get("name").getAsString().matches("[a-zA-Z0-9_-]+"));
+			String name = t.getAsJsonObject().get("name").getAsString();
+			assertTrue(name.matches("[a-zA-Z0-9_-]+"));
+			readOnly.put(name, t.getAsJsonObject().getAsJsonObject("annotations").get("readOnlyHint").getAsBoolean());
 		}
+		assertTrue(readOnly.get("sim_list"));
+		assertFalse(readOnly.get("doc_save"));
+		assertFalse(readOnly.get("pref_set"));
+		assertFalse(readOnly.get("export_obj"));
 
 		JsonObject ok = JsonParser.parseString(lines[2]).getAsJsonObject().getAsJsonObject("result");
 		assertFalse(ok.get("isError").getAsBoolean());

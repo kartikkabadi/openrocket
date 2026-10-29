@@ -287,12 +287,24 @@ public final class BeanAccess {
 	 */
 	public static UnitGroup unitHint(String name) {
 		String n = name.toLowerCase(Locale.ROOT);
+		if (n.contains("inertia") || n.contains("density")) {
+			return null;
+		}
 		if (n.contains("mass")) {
 			return UnitGroup.UNITS_MASS;
 		}
-		if (n.contains("angle") || n.contains("cant") || n.contains("sweep") || n.contains("rotation")
-				|| n.contains("theta") || n.contains("direction") || n.contains("tilt") || n.contains("latitude")
-				|| n.contains("longitude")) {
+		// Latitude and longitude are stored in degrees, not radians
+		if (n.contains("latitude")) {
+			return UnitGroup.UNITS_LATITUDE;
+		}
+		if (n.contains("longitude")) {
+			return UnitGroup.UNITS_LONGITUDE;
+		}
+		if (n.contains("strokewidth")) {
+			return UnitGroup.UNITS_STROKE_WIDTH;
+		}
+		if (n.contains("angle") || n.contains("cant") || n.contains("sweepangle") || n.contains("rotation")
+				|| n.contains("theta") || n.contains("direction") || n.contains("tilt")) {
 			return UnitGroup.UNITS_ANGLE;
 		}
 		if (n.contains("velocity") || n.contains("speed")) {
@@ -311,7 +323,7 @@ public final class BeanAccess {
 				|| n.contains("offset") || n.contains("height") || n.contains("width") || n.contains("span")
 				|| n.contains("chord") || n.contains("overhang") || n.contains("altitude") || n.contains("spacing")
 				|| n.contains("separation") || n.contains("depth") || n.contains("cgx") || n.contains("position")
-				|| n.contains("distance")) {
+				|| n.contains("distance") || n.contains("sweep")) {
 			return UnitGroup.UNITS_LENGTH;
 		}
 		return null;

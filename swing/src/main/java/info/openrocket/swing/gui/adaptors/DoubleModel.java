@@ -88,6 +88,11 @@ public class DoubleModel implements StateChangeListener, ChangeSource, Invalidat
 			this.stepSize = stepSize;
 		}
 		
+		/** The model this spinner model edits. */
+		public DoubleModel getDoubleModel() {
+			return DoubleModel.this;
+		}
+
 		@Override
 		public Object getValue() {
 			return currentUnit.toString(DoubleModel.this.getValue());

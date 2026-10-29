@@ -23,6 +23,7 @@ import info.openrocket.core.document.Simulation;
 import info.openrocket.core.material.Material;
 import info.openrocket.core.motor.Motor;
 import info.openrocket.core.preset.ComponentPreset;
+import info.openrocket.core.rocketcomponent.ClusterConfiguration;
 import info.openrocket.core.rocketcomponent.FlightConfiguration;
 import info.openrocket.core.rocketcomponent.FlightConfigurationId;
 import info.openrocket.core.rocketcomponent.RocketComponent;
@@ -96,6 +97,9 @@ public final class ValueCodec {
 			o.add("density", number(m.getDensity()));
 			o.addProperty("userDefined", m.isUserDefined());
 			return o;
+		}
+		if (v instanceof ClusterConfiguration cc) {
+			return new JsonPrimitive(cc.getXMLName());
 		}
 		if (v instanceof ORColor c) {
 			return new JsonPrimitive(String.format("#%02x%02x%02x%02x", c.getRed(), c.getGreen(), c.getBlue(),
@@ -188,7 +192,7 @@ public final class ValueCodec {
 		return t.isPrimitive() || Number.class.isAssignableFrom(t) || t == Boolean.class || t == String.class
 				|| t.isEnum() || t == UUID.class || Material.class.isAssignableFrom(t) || t == ORColor.class
 				|| CoordinateIF.class.isAssignableFrom(t) || RocketComponent.class.isAssignableFrom(t)
-				|| ComponentPreset.class.isAssignableFrom(t) || t == FlightConfigurationId.class
+				|| ComponentPreset.class.isAssignableFrom(t) || t == FlightConfigurationId.class || t == ClusterConfiguration.class
 				|| (t.isArray() && isSimpleType(t.getComponentType()))
 				|| (t.getEnclosingClass() != null && t.getEnclosingClass().isEnum());
 	}
@@ -232,6 +236,18 @@ public final class ValueCodec {
 		if (unitName.isEmpty()) {
 			return value;
 		}
+		if (group == UnitGroup.UNITS_LATITUDE || group == UnitGroup.UNITS_LONGITUDE) {
+			// Stored in degrees: accept "30 deg", "30°", "30 N", "80.6 W" (south/west are negative)
+			String u = unitName.toLowerCase(Locale.ROOT).replace("°", "").replace("degrees", "").replace("deg", "").trim();
+			switch (u) {
+				case "", "n", "e":
+					return value;
+				case "s", "w":
+					return -value;
+				default:
+					break;
+			}
+		}
 		Unit unit = findUnit(unitName, group);
 		if (unit == null) {
 			throw AutomationException.badParam("Unknown unit '" + unitName + "' in '" + s + "'"
@@ -241,6 +257,19 @@ public final class ValueCodec {
 	}
 
 	public static Unit findUnit(String name, UnitGroup group) {
+		Unit u = findUnitExact(name, group);
+		if (u == null) {
+			// ASCII spellings: "g/cm3", "m^2", "m/s2", "kg*m2", "deg/s"
+			String ascii = name.replace("^", "").replaceAll("(?<=[a-zA-Z])2", "²").replaceAll("(?<=[a-zA-Z])3", "³")
+					.replace('*', '·').replace("deg", "°");
+			if (!ascii.equals(name)) {
+				u = findUnitExact(ascii, group);
+			}
+		}
+		return u;
+	}
+
+	private static Unit findUnitExact(String name, UnitGroup group) {
 		String n = UNIT_ALIASES.getOrDefault(name.toLowerCase(Locale.ROOT), name);
 		for (boolean ignoreCase : new boolean[] { false, true }) {
 			if (group != null) {
@@ -330,6 +359,17 @@ public final class ValueCodec {
 		if (Material.class.isAssignableFrom(t)) {
 			return parseMaterial(e, t, current);
 		}
+		if (t == ClusterConfiguration.class) {
+			String want = e.getAsString();
+			List<String> names = new ArrayList<>();
+			for (ClusterConfiguration cc : ClusterConfiguration.CONFIGURATIONS) {
+				if (cc.getXMLName().equalsIgnoreCase(want)) {
+					return cc;
+				}
+				names.add(cc.getXMLName());
+			}
+			throw AutomationException.badParam("Unknown cluster configuration '" + want + "'. Choices: " + names);
+		}
 		if (t == ORColor.class) {
 			return parseColor(e.getAsString());
 		}
@@ -397,6 +437,12 @@ public final class ValueCodec {
 
 	public static List<String> enumNames(Class<?> type) {
 		List<String> names = new ArrayList<>();
+		if (type == ClusterConfiguration.class) {
+			for (ClusterConfiguration cc : ClusterConfiguration.CONFIGURATIONS) {
+				names.add(cc.getXMLName());
+			}
+			return names;
+		}
 		Object[] constants = type.isEnum() ? type.getEnumConstants()
 				: type.getEnclosingClass() != null ? type.getEnclosingClass().getEnumConstants() : null;
 		if (constants != null) {

@@ -28,6 +28,7 @@ public class LocalBackend implements Backend {
 			o.addProperty("description", c.getDescription());
 			o.add("inputSchema", c.inputSchema());
 			o.addProperty("mutating", c.isMutating());
+			o.addProperty("readOnly", c.isReadOnly());
 			a.add(o);
 		}
 		return a;

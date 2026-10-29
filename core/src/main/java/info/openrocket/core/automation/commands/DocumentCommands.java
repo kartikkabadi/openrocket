@@ -31,7 +31,7 @@ public final class DocumentCommands {
 	public static List<Command> all() {
 		List<Command> l = new ArrayList<>();
 
-		l.add(Command.builder("doc.list")
+		l.add(Command.builder("doc.list").readOnly()
 				.description("List open documents (designs) with their ids.")
 				.handler((p, s) -> {
 					JsonArray a = new JsonArray();
@@ -100,7 +100,7 @@ public final class DocumentCommands {
 					throw AutomationException.notFound("No example named '" + p.string("open") + "'");
 				}).build());
 
-		l.add(Command.builder("doc.info")
+		l.add(Command.builder("doc.info").readOnly()
 				.description("Summary of a document: file, counts, selected configuration, undo state, rocket properties.")
 				.doc()
 				.handler((p, s) -> {

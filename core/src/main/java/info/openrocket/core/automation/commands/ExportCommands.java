@@ -14,6 +14,7 @@ import info.openrocket.core.automation.J;
 import info.openrocket.core.document.OpenRocketDocument;
 import info.openrocket.core.file.rasaero.export.RASAeroSaver;
 import info.openrocket.core.file.rocksim.export.RockSimSaver;
+import info.openrocket.core.file.wavefrontobj.ObjUtils;
 import info.openrocket.core.file.wavefrontobj.export.OBJExportOptions;
 import info.openrocket.core.file.wavefrontobj.export.OBJExporterFactory;
 import info.openrocket.core.logging.ErrorSet;
@@ -73,7 +74,7 @@ public final class ExportCommands {
 				.param("components", "array", "Components to export (default: the whole rocket)")
 				.param("config", "ref", "Flight configuration (default: selected)")
 				.param("options", "object", "OBJ options: exportChildren, exportAllInstances, exportMotors, "
-						+ "removeOffset, triangulate, exportAppearance, exportAsSeparateFiles, LOD (LOW_QUALITY/"
+						+ "removeOffset, triangulate, triangulationMethod (DELAUNAY/SIMPLE), exportAppearance, exportAsSeparateFiles, LOD (LOW_QUALITY/"
 						+ "NORMAL_QUALITY/HIGH_QUALITY), scalingDouble, useSRGB")
 				.handler((p, s) -> {
 					OpenRocketDocument doc = s.document(p);
@@ -87,6 +88,7 @@ public final class ExportCommands {
 					}
 					OBJExportOptions opts = new OBJExportOptions(doc.getRocket());
 					opts.setExportChildren(true);
+					opts.setTriangulationMethod(ObjUtils.TriangulationMethod.DELAUNAY);
 					if (p.has("options")) {
 						ComponentCommands.applyProperties(s, doc, opts, p.object("options"));
 					}

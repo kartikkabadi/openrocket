@@ -6,7 +6,8 @@
 #   openrocket mcp [--gui]     MCP server on stdio
 #   openrocket serve           headless automation server
 # Uses $OPENROCKET_JAR if set, else the newest build/libs/OpenRocket-*.jar; Java from
-# $OPENROCKET_JAVA_HOME or $JAVA_HOME (OpenRocket supports Java 17 and 21).
+# $OPENROCKET_JAVA_HOME or $JAVA_HOME (OpenRocket supports Java 17 and 21; if the default Java is
+# another version, an installed 21 or 17 is used instead).
 set -euo pipefail
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 jar="${OPENROCKET_JAR:-$(ls -t "$here"/build/libs/OpenRocket-*.jar 2>/dev/null | head -1 || true)}"
@@ -16,6 +17,34 @@ if [[ -z "$jar" || ! -f "$jar" ]]; then
 fi
 java_home="${OPENROCKET_JAVA_HOME:-${JAVA_HOME:-}}"
 java="${java_home:+$java_home/bin/}java"
+java_major() { "$1" -version 2>&1 | sed -nE 's/.*version "([0-9]+).*/\1/p' | head -1; }
+if [[ -z "${OPENROCKET_JAVA_HOME:-}" ]]; then
+	case "$(java_major "$java")" in
+		17|21) ;;
+		*)
+			# Another Java is the default (Gradle and OpenRocket need 17 or 21): look for one
+			for v in 21 17; do
+				for h in "$(/usr/libexec/java_home -v "$v" 2>/dev/null || true)" \
+					"/opt/homebrew/opt/openjdk@$v/libexec/openjdk.jdk/Contents/Home" "/usr/local/opt/openjdk@$v/libexec/openjdk.jdk/Contents/Home" \
+					/usr/lib/jvm/java-$v-openjdk*; do
+					if [[ -n "$h" && -x "$h/bin/java" && "$(java_major "$h/bin/java")" == "$v" ]]; then java="$h/bin/java"; break 2; fi
+				done
+			done ;;
+	esac
+fi
+jvm_opts=()
+if [[ "$(uname -s)" == Darwin ]]; then
+	# sqlite-jdbc extracts its native library to a new temp file on every start, and macOS sometimes
+	# refuses to load such a fresh unsigned file, leaving the motor database empty. Extract it once.
+	arch="$(uname -m)"; [[ "$arch" == arm64 ]] && arch=aarch64
+	cache="${XDG_CACHE_HOME:-$HOME/Library/Caches}/OpenRocket/sqlite-$(stat -f %m-%z "$jar")-$arch"
+	if [[ ! -f "$cache/libsqlitejdbc.dylib" ]]; then
+		mkdir -p "$cache"
+		unzip -p "$jar" "org/sqlite/native/Mac/$arch/libsqlitejdbc.dylib" > "$cache/libsqlitejdbc.dylib.tmp" 2>/dev/null \
+			&& mv "$cache/libsqlitejdbc.dylib.tmp" "$cache/libsqlitejdbc.dylib" || rm -f "$cache/libsqlitejdbc.dylib.tmp"
+	fi
+	[[ -s "$cache/libsqlitejdbc.dylib" ]] && jvm_opts+=("-Dorg.sqlite.lib.path=$cache" "-Dorg.sqlite.lib.name=libsqlitejdbc.dylib")
+fi
 headless=false
 case "${1:-}" in
 	cli|serve) headless=true ;;
@@ -23,6 +52,6 @@ case "${1:-}" in
 esac
 if $headless; then
 	# -cp instead of -jar: the jar manifest's splash screen would start the macOS GUI subsystem
-	exec "$java" -Djava.awt.headless=true ${OPENROCKET_JVM_OPTS:-} -cp "$jar" info.openrocket.swing.startup.OpenRocket "$@"
+	exec "$java" -Djava.awt.headless=true ${jvm_opts[@]+"${jvm_opts[@]}"} ${OPENROCKET_JVM_OPTS:-} -cp "$jar" info.openrocket.swing.startup.OpenRocket "$@"
 fi
-exec "$java" ${OPENROCKET_JVM_OPTS:-} -jar "$jar" "$@"
+exec "$java" ${jvm_opts[@]+"${jvm_opts[@]}"} ${OPENROCKET_JVM_OPTS:-} -jar "$jar" "$@"

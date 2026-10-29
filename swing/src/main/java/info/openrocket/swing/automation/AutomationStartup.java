@@ -120,6 +120,7 @@ public final class AutomationStartup {
 			}
 		} else if (flag(args, "--gui")) {
 			System.setProperty(Automation.NO_PROMPT_PROPERTY, "true");
+			useSwingFileChooser();
 			String port = option(args, "--port");
 			if (port != null) {
 				System.setProperty(Automation.SERVER_PROPERTY, port);
@@ -153,9 +154,20 @@ public final class AutomationStartup {
 	private static void gui(List<String> args) throws Exception {
 		String port = option(args, "--port");
 		System.setProperty(Automation.SERVER_PROPERTY, port == null ? "0" : port);
+		useSwingFileChooser();
 		if (flag(args, "--no-prompt")) {
 			System.setProperty(Automation.NO_PROMPT_PROPERTY, "true");
 		}
 		SwingStartup.main(args.toArray(new String[0]));
+	}
+
+	/**
+	 * Native (OS) file dialogs are not Java windows, so the gui.* commands cannot see or operate them.
+	 * Use Swing's file chooser instead unless the user chose otherwise with -Dflatlaf.useSystemFileChooser.
+	 */
+	private static void useSwingFileChooser() {
+		if (System.getProperty("flatlaf.useSystemFileChooser") == null) {
+			System.setProperty("flatlaf.useSystemFileChooser", "false");
+		}
 	}
 }

@@ -104,7 +104,7 @@ public final class DatabaseCommands {
 	public static List<Command> all() {
 		List<Command> l = new ArrayList<>();
 
-		l.add(Command.builder("motor.search")
+		l.add(Command.builder("motor.search").readOnly()
 				.description("Search the motor database. All filters are optional and combined; results are sorted by total impulse.")
 				.param("query", "string", "Substring of designation / common name / manufacturer")
 				.param("manufacturer", "string", "Manufacturer (e.g. Estes, Aerotech, Cesaroni)")
@@ -163,7 +163,7 @@ public final class DatabaseCommands {
 					return J.obj("total", out.size(), "motors", a);
 				}).build());
 
-		l.add(Command.builder("motor.get")
+		l.add(Command.builder("motor.get").readOnly()
 				.description("Full details of one motor including its thrust curve (time s, thrust N).")
 				.param("motor", "string", "Designation or common name")
 				.param("manufacturer", "string", "Manufacturer")
@@ -173,7 +173,7 @@ public final class DatabaseCommands {
 						p.string("manufacturer", null), p.string("digest", null)), true))
 				.build());
 
-		l.add(Command.builder("preset.search")
+		l.add(Command.builder("preset.search").readOnly()
 				.description("Search manufacturer component presets (body tubes, nose cones, parachutes, ...). Apply one with component.preset.")
 				.param("type", "string", "Preset type: " + ValueCodec.enumNames(ComponentPreset.Type.class))
 				.param("query", "string", "Substring of manufacturer / part number / description")
@@ -211,7 +211,7 @@ public final class DatabaseCommands {
 					return J.obj("total", total, "presets", a);
 				}).build());
 
-		l.add(Command.builder("material.list")
+		l.add(Command.builder("material.list").readOnly()
 				.description("List materials (density in SI: kg/m³ bulk, kg/m² surface, kg/m line).")
 				.param("type", "string", "BULK, SURFACE or LINE (default all)")
 				.anyThread()

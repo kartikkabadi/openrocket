@@ -87,7 +87,7 @@ public final class SimulationCommands {
 	public static List<Command> all() {
 		List<Command> l = new ArrayList<>();
 
-		l.add(Command.builder("sim.list")
+		l.add(Command.builder("sim.list").readOnly()
 				.description("List simulations with status, configuration and (if run) summary results in SI units.")
 				.doc()
 				.handler((p, s) -> {
@@ -99,7 +99,7 @@ public final class SimulationCommands {
 					return a;
 				}).build());
 
-		l.add(Command.builder("sim.get")
+		l.add(Command.builder("sim.get").readOnly()
 				.description("One simulation: status, summary, warnings, all launch/simulation options and extensions. "
 						+ "Change options with sim.set.")
 				.doc()
@@ -223,7 +223,7 @@ public final class SimulationCommands {
 					return a;
 				}).build());
 
-		l.add(Command.builder("sim.events")
+		l.add(Command.builder("sim.events").readOnly()
 				.description("Flight events (launch, burnout, apogee, deployment, ground hit, ...) of a simulated flight.")
 				.doc()
 				.param("sim", "ref", SIM)
@@ -243,7 +243,7 @@ public final class SimulationCommands {
 					return J.obj("branch", b.getName(), "events", a);
 				}).build());
 
-		l.add(Command.builder("sim.data_types")
+		l.add(Command.builder("sim.data_types").readOnly()
 				.description("The data series available in a simulated flight branch (key, name, SI unit).")
 				.doc()
 				.param("sim", "ref", SIM)
@@ -261,7 +261,7 @@ public final class SimulationCommands {
 					return J.obj("branches", branches, "types", a);
 				}).build());
 
-		l.add(Command.builder("sim.data")
+		l.add(Command.builder("sim.data").readOnly()
 				.description("Time series of a simulated flight in SI units, as columns. Downsampled to 'maxPoints'.")
 				.doc()
 				.param("sim", "ref", SIM)
@@ -367,7 +367,7 @@ public final class SimulationCommands {
 					return J.obj("written", f.getAbsolutePath(), "columns", types.size(), "rows", b.getLength());
 				}).build());
 
-		l.add(Command.builder("sim.extensions")
+		l.add(Command.builder("sim.extensions").readOnly()
 				.description("List the simulation extensions that can be added (id and name), e.g. air-start, "
 						+ "roll control, scripting.")
 				.handler((p, s) -> {
