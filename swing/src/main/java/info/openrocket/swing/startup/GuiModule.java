@@ -79,7 +79,9 @@ public class GuiModule extends AbstractModule {
 			// Initialize the motor database before loading
 			MotorDatabaseInitializer.initialize();
 			// Check for a newer remote database and optionally install it before loading
-			MotorDatabaseUpdateChecker.checkForUpdatesAndInstallIfRequested();
+			if (!info.openrocket.swing.automation.Automation.suppressStartupDialogs()) {
+				MotorDatabaseUpdateChecker.checkForUpdatesAndInstallIfRequested();
+			}
 			/*
 			 * Modal dialogs shown during the update check can pump the EDT and trigger a
 			 * re-entrant motor database request. In that case the provider starts the

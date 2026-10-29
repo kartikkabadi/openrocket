@@ -26,6 +26,7 @@ import info.openrocket.core.communication.UpdateInfoRetriever;
 import info.openrocket.core.communication.UpdateInfoRetriever.ReleaseStatus;
 import info.openrocket.core.communication.WelcomeInfoRetriever;
 import info.openrocket.core.database.Databases;
+import info.openrocket.swing.automation.Automation;
 import info.openrocket.swing.gui.dialogs.UpdateInfoDialog;
 import info.openrocket.swing.gui.dialogs.WelcomeDialog;
 import info.openrocket.swing.gui.main.BasicFrame;
@@ -111,6 +112,8 @@ public class SwingStartup {
 		});
 		
 		log.info("Startup complete");
+
+		Automation.startGuiServerIfRequested();
 		
 	}
 
@@ -222,7 +225,9 @@ public class SwingStartup {
 		GUIUtil.applyLAF();
 
 		// Ask before either startup update checker is allowed to access the internet.
-		requestUpdateCheckPermission();
+		if (!Automation.suppressStartupDialogs()) {
+			requestUpdateCheckPermission();
+		}
 		
 		guiModule.startLoader();
 		
@@ -255,12 +260,16 @@ public class SwingStartup {
 				// Adopt it as the startup frame instead of opening a second one.
 				BasicFrame.setStartupFrame(BasicFrame.lastFrameInstance);
 			}
-			showWelcomeDialog();
+			if (!Automation.suppressStartupDialogs()) {
+				showWelcomeDialog();
+			}
 		}
 		
 		// Check whether update info has been fetched or whether it needs more time
-		log.info("Checking update status");
-		checkUpdateStatus(updateRetriever);
+		if (!Automation.suppressStartupDialogs()) {
+			log.info("Checking update status");
+			checkUpdateStatus(updateRetriever);
+		}
 
 		// Check if plugins were migrated during this startup, if so, display a message
 		final String migratedJars = System.getProperty(JarMigrationHelper.MIGRATED_JARS_PROPERTY);

@@ -32,6 +32,9 @@ open module info.openrocket.core {
 
 	// TODO: I'm a JPMS noob, so I just exported each package. Should really check which ones are actually needed.
 	exports info.openrocket.core.aerodynamics;
+	exports info.openrocket.core.automation;
+	exports info.openrocket.core.automation.commands;
+	exports info.openrocket.core.automation.protocol;
 	exports info.openrocket.core.aerodynamics.barrowman;
 	exports info.openrocket.core.appearance;
 	exports info.openrocket.core.appearance.defaults;
