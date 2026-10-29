@@ -28,10 +28,20 @@ import info.openrocket.core.arch.SystemInfo.Platform;
 public class OpenRocket {
 	static final String CLASSPATH_READY_PROPERTY = "openrocket.startup.classpath-ready";
 	private static final String STARTUP_CLASS = "info.openrocket.swing.startup.SwingStartup";
+	private static final String AUTOMATION_STARTUP_CLASS = "info.openrocket.swing.automation.AutomationStartup";
 
 	public static void main(String[] args) {
+		// "cli", "mcp", "serve" and "gui" select the programmatic interfaces (see AutomationStartup)
+		String mode = args.length > 0 ? args[0] : "";
+		boolean automation = mode.equals("cli") || mode.equals("mcp") || mode.equals("serve") || mode.equals("gui");
+		boolean headless = mode.equals("cli") || mode.equals("serve")
+				|| (mode.equals("mcp") && !java.util.Arrays.asList(args).contains("--gui"));
+		if (headless) {
+			System.setProperty("java.awt.headless", "true");
+		}
+
 		// Set OSX-specific properties
-		if (SystemInfo.getPlatform() == Platform.MAC_OS) {
+		if (SystemInfo.getPlatform() == Platform.MAC_OS && !headless) {
 			OSXSetup.setupOSXProperties();
 		}
 
@@ -44,7 +54,7 @@ public class OpenRocket {
 		String previousClasspathReady = System.getProperty(CLASSPATH_READY_PROPERTY);
 		System.setProperty(CLASSPATH_READY_PROPERTY, Boolean.TRUE.toString());
 		try {
-			JarInJarStarter.runMain(STARTUP_CLASS, args, new CurrentClasspathProvider(),
+			JarInJarStarter.runMain(automation ? AUTOMATION_STARTUP_CLASS : STARTUP_CLASS, args, new CurrentClasspathProvider(),
 					new ManifestClasspathProvider(), new PluginClasspathProvider());
 		} finally {
 			restoreClasspathReadyProperty(previousClasspathReady);

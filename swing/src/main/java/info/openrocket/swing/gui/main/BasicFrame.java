@@ -494,6 +494,27 @@ private static final Translator trans = Application.getTranslator();
 		return result;
 	}
 
+	public OpenRocketDocument getDocument() {
+		return document;
+	}
+
+	public DocumentSelectionModel getSelectionModel() {
+		return selectionModel;
+	}
+
+	/**
+	 * Close this window as File → Close does, asking to save unsaved changes unless
+	 * {@code discardChanges} is true.
+	 *
+	 * @return whether the window was closed
+	 */
+	public boolean close(boolean discardChanges) {
+		if (discardChanges) {
+			document.setSaved(true);
+		}
+		return closeAction();
+	}
+
 	public RocketPanel getRocketPanel() {
 		return rocketpanel;
 	}
