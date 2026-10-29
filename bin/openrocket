@@ -9,7 +9,14 @@
 # $OPENROCKET_JAVA_HOME or $JAVA_HOME (OpenRocket supports Java 17 and 21; if the default Java is
 # another version, an installed 21 or 17 is used instead).
 set -euo pipefail
-here="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# Resolve symlinks (e.g. ~/.local/bin/openrocket) to find the checkout
+src="${BASH_SOURCE[0]}"
+while [[ -L "$src" ]]; do
+	dir="$(cd "$(dirname "$src")" && pwd)"
+	src="$(readlink "$src")"
+	[[ "$src" == /* ]] || src="$dir/$src"
+done
+here="$(cd "$(dirname "$src")/.." && pwd)"
 jar="${OPENROCKET_JAR:-$(ls -t "$here"/build/libs/OpenRocket-*.jar 2>/dev/null | head -1 || true)}"
 if [[ -z "$jar" || ! -f "$jar" ]]; then
 	echo "OpenRocket jar not found; build it with: ./gradlew shadowJar -x test" >&2

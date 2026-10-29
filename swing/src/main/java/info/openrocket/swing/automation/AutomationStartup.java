@@ -27,7 +27,8 @@ import ch.qos.logback.core.ConsoleAppender;
  * Entry point for the programmatic interfaces:
  * <pre>
  * openrocket cli   &lt;command&gt; [--param value ...]   run one command (or: repl, run FILE, commands)
- * openrocket mcp   [--gui | --connect] [files]   Model Context Protocol server on stdio
+ * openrocket mcp   [--gui | --connect | --auto] [files]   Model Context Protocol server on stdio
+ *                  (--auto: attach to a running OpenRocket if there is one, else headless)
  * openrocket serve [--port N]                    headless automation server for cli/mcp --connect
  * openrocket gui   [--port N] [files]            the GUI with the automation server enabled
  * </pre>
@@ -110,7 +111,16 @@ public final class AutomationStartup {
 		InputStream protocolIn = System.in;
 		quietLogging(logLevel());
 		Backend backend;
-		if (flag(args, "--connect")) {
+		if (flag(args, "--auto")) {
+			// Attach to a running GUI or server when there is one, else work headless
+			backend = RemoteBackend.connect();
+			if (backend == null) {
+				backend = new LocalBackend(Automation.headlessSession());
+			}
+			for (String f : args) {
+				backend.call("doc.open", info.openrocket.core.automation.J.obj("path", f));
+			}
+		} else if (flag(args, "--connect")) {
 			backend = RemoteBackend.connect();
 			if (backend == null) {
 				System.err.println("No running OpenRocket automation server found. Start one with "

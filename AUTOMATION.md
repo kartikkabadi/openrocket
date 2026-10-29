@@ -95,6 +95,8 @@ Headless (the default): an in-memory session, with no window.
 - `["mcp", "--gui"]` starts the full GUI in the same process. The agent's changes appear live, and the `gui_*`
   tools can screenshot, click and operate any dialog. Screenshots and renders come back as image content.
 - `["mcp", "--connect"]` attaches to an OpenRocket started with `bin/openrocket gui` or `bin/openrocket serve`.
+- `["mcp", "--auto"]` attaches to a running OpenRocket if there is one when the MCP server starts, and otherwise
+  works headless. It suits an agent that is always configured: open OpenRocket first to watch it work.
 
 For Claude Code: `claude mcp add openrocket -- /path/to/openrocket/bin/openrocket mcp --gui`.
 
